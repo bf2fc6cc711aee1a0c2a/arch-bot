@@ -165,6 +165,8 @@ public class CreateDraftRecordFlow {
             // Merge it
             pr.merge(commitMessage, null, GHPullRequest.MergeMethod.REBASE);
 
+            // TODO delete PR source branch after merge
+
             // Comment on the issue with instructions
             issue.comment(String.format(
                     "Closing following creation of [%s](%s)\n" +
@@ -183,7 +185,7 @@ public class CreateDraftRecordFlow {
 
     private static String githubFileLink(GHRepository repo, RecordId record) {
         return MessageFormat.format("{0}/blob/{1}/{2}",
-                repo.getHomepage(), repo.getDefaultBranch(), record.repoPath());
+                repo.getHtmlUrl(), repo.getDefaultBranch(), record.repoPath());
     }
 
     @NotNull
