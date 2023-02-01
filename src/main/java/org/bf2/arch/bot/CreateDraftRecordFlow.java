@@ -69,7 +69,7 @@ public class CreateDraftRecordFlow {
 
 
     /**
-     * Creates a PR for a Draft ADR when an issue comment has {@code /create-adr} (or ap, or padr),
+     * Creates a PR for a Draft ADR when an issue comment has {@code /create adr} (or ap, or padr),
      * or {@code /supersede adr 123}.
      * @param commentPayload The payload
      * @param config The config
@@ -156,7 +156,7 @@ public class CreateDraftRecordFlow {
                 tree.add(supersededRecord.repoPath(), supersededPage.toContentString(), false);
             }
 
-            var commitMessage = String.format("%s: Create draft\nFixes #%d", draftRecord, issue.getNumber());
+            var commitMessage = String.format("%s: Create draft\n\nFixes #%d", draftRecord, issue.getNumber());
             var branchRef = createCommit(draftRecord, repo, defaultBranchSha, commitMessage, tree.create());
 
             // Open a PR
@@ -164,6 +164,8 @@ public class CreateDraftRecordFlow {
 
             // Merge it
             pr.merge(commitMessage, null, GHPullRequest.MergeMethod.REBASE);
+
+            // TODO delete PR source branch after merge
 
             // Comment on the issue with instructions
             issue.comment(String.format(
@@ -183,7 +185,7 @@ public class CreateDraftRecordFlow {
 
     private static String githubFileLink(GHRepository repo, RecordId record) {
         return MessageFormat.format("{0}/blob/{1}/{2}",
-                repo.getHomepage(), repo.getDefaultBranch(), record.repoPath());
+                repo.getHtmlUrl(), repo.getDefaultBranch(), record.repoPath());
     }
 
     @NotNull
