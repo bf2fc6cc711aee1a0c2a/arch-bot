@@ -46,6 +46,9 @@ public class StalledDiscussionFlow {
     @ConfigProperty(name = ENABLE, defaultValue = "false")
     boolean enabled;
 
+    @ConfigProperty(name = "repository.path")
+    String repositoryPath;
+
     private Date lastRan = new Date(0);
 
     GitHub client;
@@ -55,14 +58,12 @@ public class StalledDiscussionFlow {
     void init(GitHubService service) {
         if (!enabled) {
             LOG.debug("Ignoring init: disabled due to {}=false", ENABLE);
+        } else if (installationId != null) {
+            // TODO parameterise this installationId
+            client = service.getInstallationClient(installationId);
+            // TODO load the config
         } else {
-            if (installationId != null) {
-                // TODO parameterise this installactionId
-                client = service.getInstallationClient(installationId);
-                // TODO load the config
-            } else {
-                throw new RuntimeException("installaction id is requied");
-            }
+            throw new RuntimeException("installation id is requied");
         }
     }
 
@@ -72,17 +73,20 @@ public class StalledDiscussionFlow {
      * When
      * every N hours
      * query
-     * https://github.com/tombentley/app-services-architecture/pulls?q=
+     * https://github.com/pulls?q=
      *   is%3Aopen+
+     *   repo%3A%22<org/repo>%22+
      *   is%3Apr+
-     *   label%3A%22state%3A+needs-reviewers%22+
-     *   label%3A%22state%3A+being-reviewed%22+
+     *   label%3A%22state%3A+needs-reviewers%22%2C%22state%3A+being-reviewed%22+
+     *   -label%3A%22notice%3A+overdue%22+
      *   sort%3Aupdated-asc
      * for each PR:
-     *   If last review comment, or last PR comment was > X hours ago then add the "stalled-discussion" label
+     * If last review comment, or last PR comment was > X hours ago then add the
+     * "stalled-discussion" label
      * MAS Arch meeting triages the corresponding query
-     *   If last review comment, or last PR comment was > X hours ago then remove the "stalled-discussion" label
-     *   If the PR has been opened for > Y hours then "stalled-discussion"
+     * If last review comment, or last PR comment was > X hours ago then remove the
+     * "stalled-discussion" label
+     * If the PR has been opened for > Y hours then "stalled-discussion"
      */
     // TODO similar method as this, but for OVERDUE
     @Scheduled(every="60s")
@@ -98,6 +102,7 @@ public class StalledDiscussionFlow {
 
         var results = client.searchIssues()
                 .isOpen()
+                .q("repo:" + repositoryPath)
                 .q("is:pr")
                 // multiple labels in a label query term => OR, see https://github.com/github/feedback/discussions/4507
                 // whereas multiple label query terms => AND
