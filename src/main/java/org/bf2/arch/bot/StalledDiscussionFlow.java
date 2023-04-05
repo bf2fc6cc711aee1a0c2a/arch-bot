@@ -16,15 +16,15 @@
  */
 package org.bf2.arch.bot;
 
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Date;
+import java.util.Optional;
 import java.util.Set;
 
-import io.quarkiverse.githubapp.runtime.github.GitHubService;
-import io.quarkus.scheduler.Scheduled;
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
+
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.kohsuke.github.GHDirection;
 import org.kohsuke.github.GHIssue;
@@ -33,6 +33,11 @@ import org.kohsuke.github.GHPullRequest;
 import org.kohsuke.github.GitHub;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.quarkiverse.githubapp.ConfigFile;
+import io.quarkiverse.githubapp.GitHubConfigFileProvider;
+import io.quarkiverse.githubapp.runtime.github.GitHubService;
+import io.quarkus.scheduler.Scheduled;
 
 @ApplicationScoped
 public class StalledDiscussionFlow {
@@ -52,16 +57,20 @@ public class StalledDiscussionFlow {
     private Date lastRan = new Date(0);
 
     GitHub client;
-    //ArchBotConfig config;
+    ArchBotConfig config;
 
     @Inject
-    void init(GitHubService service) {
+    void init(GitHubService service, GitHubConfigFileProvider configFileProvider) throws IOException {
         if (!enabled) {
             LOG.debug("Ignoring init: disabled due to {}=false", ENABLE);
         } else if (installationId != null) {
             // TODO parameterise this installationId
             client = service.getInstallationClient(installationId);
-            // TODO load the config
+
+            Optional<ArchBotConfig> oconfig = configFileProvider.fetchConfigFile(client.getRepository(repositoryPath),
+                                                                                 Util.CONFIG_REPO_PATH, ConfigFile.Source.DEFAULT, ArchBotConfig.class);
+            config = oconfig.orElseThrow();
+            LOG.info("CONFIGG: {}", config);
         } else {
             throw new RuntimeException("installation id is requied");
         }
@@ -112,14 +121,8 @@ public class StalledDiscussionFlow {
                 .order(GHDirection.ASC)
                 .list();
         LOG.info("Top-level query found {} PRs", results.getTotalCount());
-        int processed = 0;
         for (GHIssue issue : results) {
-//            if () {
-//                lastRan = new Date();
-//                break;
-//            }
-            processed++;
-            try {
+try {
                 GHPullRequest pullRequest = Util.findPullRequest(issue);
                 if (pullRequest == null) {
                     LOG.info("Issue#{} is not a PR, ignoring", issue.getNumber());
@@ -132,14 +135,15 @@ public class StalledDiscussionFlow {
                 // https://docs.github.com/en/rest/pulls/comments#list-review-comments-in-a-repository
                 // but the client doesn't expose them
                 Date lastCommentDate;
+                LOG.info("COMMENTS COUNT: {}", pullRequest.listReviewComments().toList().size());
                 var mostRecent = pullRequest.listReviewComments().toList().stream()
-//                        .filter(pr -> {
-//                            try {
-//                                return !Util.isThisBot(config, pr.getUser());
-//                            } catch (IOException e) {
-//                                return true;
-//                            }
-//                        })
+                       .filter(pr -> {
+                           try {
+                               return !Util.isThisBot(config, pr.getUser());
+                           } catch (IOException e) {
+                               return true;
+                           }
+                       })
                         .map(comment -> {
                             try {
                                 LOG.info("Comment: {}", comment.getBody());
