@@ -11,14 +11,10 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import io.quarkiverse.githubapp.ConfigFile;
-import io.quarkiverse.githubapp.event.IssueComment;
-import org.bf2.arch.bot.model.record.RecordPage;
 import org.bf2.arch.bot.model.record.RecordId;
+import org.bf2.arch.bot.model.record.RecordPage;
 import org.bf2.arch.bot.model.record.RecordType;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.kohsuke.github.GHBranch;
 import org.kohsuke.github.GHCommit;
 import org.kohsuke.github.GHContent;
@@ -31,6 +27,11 @@ import org.kohsuke.github.GHTree;
 import org.kohsuke.github.GHTreeEntry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.quarkiverse.githubapp.ConfigFile;
+import io.quarkiverse.githubapp.event.IssueComment;
+import io.smallrye.common.constraint.NotNull;
+import io.smallrye.common.constraint.Nullable;
 
 /**
  * Flow for creating a Draft record (AP, ADR, PADR), and possibly superseding an existing record.
