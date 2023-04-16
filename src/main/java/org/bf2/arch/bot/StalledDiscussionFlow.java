@@ -70,7 +70,6 @@ public class StalledDiscussionFlow {
             Optional<ArchBotConfig> oconfig = configFileProvider.fetchConfigFile(client.getRepository(repositoryPath),
                                                                                  Util.CONFIG_REPO_PATH, ConfigFile.Source.DEFAULT, ArchBotConfig.class);
             config = oconfig.orElseThrow();
-            LOG.info("CONFIGG: {}", config);
         } else {
             throw new RuntimeException("installation id is requied");
         }
@@ -122,7 +121,7 @@ public class StalledDiscussionFlow {
                 .list();
         LOG.info("Top-level query found {} PRs", results.getTotalCount());
         for (GHIssue issue : results) {
-try {
+            try {
                 GHPullRequest pullRequest = Util.findPullRequest(issue);
                 if (pullRequest == null) {
                     LOG.info("Issue#{} is not a PR, ignoring", issue.getNumber());
@@ -137,14 +136,14 @@ try {
                 Date lastCommentDate;
                 LOG.info("COMMENTS COUNT: {}", pullRequest.listReviewComments().toList().size());
                 var mostRecent = pullRequest.listReviewComments().toList().stream()
-                       .filter(pr -> {
-                           try {
-                               return !Util.isThisBot(config, pr.getUser());
-                           } catch (IOException e) {
-                               return true;
-                           }
-                       })
-                        .map(comment -> {
+                    .filter(pr -> {
+                            try {
+                                return !Util.isThisBot(config, pr.getUser());
+                            } catch (IOException e) {
+                                return true;
+                            }
+                        })
+                    .map(comment -> {
                             try {
                                 LOG.info("Comment: {}", comment.getBody());
                                 LOG.info("User: {}", comment.getUser().getLogin());
@@ -155,16 +154,16 @@ try {
                         }).max(Date::compareTo);
 
                 lastCommentDate = mostRecent.orElseGet(() -> {
-                    try {
-                        return pullRequest.getUpdatedAt();
-                    } catch (IOException e) {
                         try {
-                            return pullRequest.getCreatedAt();
-                        } catch (IOException ex) {
-                            return new Date(0);
+                            return pullRequest.getUpdatedAt();
+                        } catch (IOException e) {
+                            try {
+                                return pullRequest.getCreatedAt();
+                            } catch (IOException ex) {
+                                return new Date(0);
+                            }
                         }
-                    }
-                });
+                    });
                 LOG.info("PR#{}: Last comment time {}", pullRequest.getNumber(), lastCommentDate);
 
                 if (lastCommentDate.getTime() < thresh) {
