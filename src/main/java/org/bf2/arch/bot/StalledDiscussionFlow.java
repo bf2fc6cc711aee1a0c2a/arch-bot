@@ -78,7 +78,7 @@ public class StalledDiscussionFlow {
         }
     }
 
-    @Scheduled(every = "30m")
+    @Scheduled(every = "20m")
     void updateInstallationClientToken() {
         LOG.debug("Updating installation client to get new token (expires every 1h)");
         client = service.getInstallationClient(installationId);
@@ -104,7 +104,7 @@ public class StalledDiscussionFlow {
      * If the PR has been opened for > Y hours then "stalled-discussion"
      */
     // TODO similar method as this, but for OVERDUE
-    @Scheduled(every="60s")
+    @Scheduled(every="15m")
     public void checkForStalledDiscussions() throws IOException {
         if (!enabled) {
             LOG.debug("Ignoring scheduled trigger: disabled due to {}=false", ENABLE);
