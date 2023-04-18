@@ -60,7 +60,10 @@ public class StalledDiscussionFlow {
     ArchBotConfig config;
 
     @Inject
-    void init(GitHubService service, GitHubConfigFileProvider configFileProvider) throws IOException {
+    GitHubService service;
+
+    @Inject
+    void init(GitHubConfigFileProvider configFileProvider) throws IOException {
         if (!enabled) {
             LOG.debug("Ignoring init: disabled due to {}=false", ENABLE);
         } else if (installationId != null) {
@@ -74,8 +77,6 @@ public class StalledDiscussionFlow {
             throw new RuntimeException("installation id is requied");
         }
     }
-
-
 
     /**
      * When
@@ -97,7 +98,7 @@ public class StalledDiscussionFlow {
      * If the PR has been opened for > Y hours then "stalled-discussion"
      */
     // TODO similar method as this, but for OVERDUE
-    @Scheduled(every="60s")
+    @Scheduled(every = "{BOT_STALLED_DISCUSSION_FLOW_POLL_DURATION}")
     public void checkForStalledDiscussions() throws IOException {
         if (!enabled) {
             LOG.debug("Ignoring scheduled trigger: disabled due to {}=false", ENABLE);
@@ -106,7 +107,9 @@ public class StalledDiscussionFlow {
         long now = System.currentTimeMillis();
         long thresh = now - 24*40*60*1000L;
         LOG.info("Checking for stalled discussions");
-        // TODO need a parameter for this installation id
+
+        LOG.debug("Updating installation client to get new token (expires every 1h)");
+        client = service.getInstallationClient(installationId);
 
         var results = client.searchIssues()
                 .isOpen()
