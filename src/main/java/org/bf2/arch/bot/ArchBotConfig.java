@@ -15,11 +15,13 @@ public class ArchBotConfig {
     /**
      * Github login name of the bot itself.
      */
+    @JsonDeserialize
     String botUserLogin;
 
     /**
      * The time, in minutes, to wait between checking for stalled discussions.
      */
+    @JsonDeserialize
     long stalledDiscussionPollTimeMins;
 
     /**
@@ -31,7 +33,8 @@ public class ArchBotConfig {
     /**
      * The URL at which the site is published.
      */
-    String publishedUrl = "https://architecture.appservices.tech";
+    @JsonDeserialize
+    String publishedUrl;
 
     @Override
     public String toString() {

@@ -16,15 +16,15 @@
  */
 package org.bf2.arch.bot;
 
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Date;
+import java.util.Optional;
 import java.util.Set;
 
-import io.quarkiverse.githubapp.runtime.github.GitHubService;
-import io.quarkus.scheduler.Scheduled;
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
+
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.kohsuke.github.GHDirection;
 import org.kohsuke.github.GHIssue;
@@ -33,6 +33,11 @@ import org.kohsuke.github.GHPullRequest;
 import org.kohsuke.github.GitHub;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.quarkiverse.githubapp.ConfigFile;
+import io.quarkiverse.githubapp.GitHubConfigFileProvider;
+import io.quarkiverse.githubapp.runtime.github.GitHubService;
+import io.quarkus.scheduler.Scheduled;
 
 @ApplicationScoped
 public class StalledDiscussionFlow {
@@ -52,22 +57,32 @@ public class StalledDiscussionFlow {
     private Date lastRan = new Date(0);
 
     GitHub client;
-    //ArchBotConfig config;
+    ArchBotConfig config;
 
     @Inject
-    void init(GitHubService service) {
+    GitHubService service;
+
+    @Inject
+    void init(GitHubConfigFileProvider configFileProvider) throws IOException {
         if (!enabled) {
             LOG.debug("Ignoring init: disabled due to {}=false", ENABLE);
         } else if (installationId != null) {
             // TODO parameterise this installationId
             client = service.getInstallationClient(installationId);
-            // TODO load the config
+
+            Optional<ArchBotConfig> oconfig = configFileProvider.fetchConfigFile(client.getRepository(repositoryPath),
+                                                                                 Util.CONFIG_REPO_PATH, ConfigFile.Source.DEFAULT, ArchBotConfig.class);
+            config = oconfig.orElseThrow();
         } else {
             throw new RuntimeException("installation id is requied");
         }
     }
 
-
+    @Scheduled(every = "20m")
+    void updateInstallationClientToken() {
+        LOG.debug("Updating installation client to get new token (expires every 1h)");
+        client = service.getInstallationClient(installationId);
+    }
 
     /**
      * When
@@ -89,7 +104,7 @@ public class StalledDiscussionFlow {
      * If the PR has been opened for > Y hours then "stalled-discussion"
      */
     // TODO similar method as this, but for OVERDUE
-    @Scheduled(every="60s")
+    @Scheduled(every="15m")
     public void checkForStalledDiscussions() throws IOException {
         if (!enabled) {
             LOG.debug("Ignoring scheduled trigger: disabled due to {}=false", ENABLE);
@@ -112,13 +127,7 @@ public class StalledDiscussionFlow {
                 .order(GHDirection.ASC)
                 .list();
         LOG.info("Top-level query found {} PRs", results.getTotalCount());
-        int processed = 0;
         for (GHIssue issue : results) {
-//            if () {
-//                lastRan = new Date();
-//                break;
-//            }
-            processed++;
             try {
                 GHPullRequest pullRequest = Util.findPullRequest(issue);
                 if (pullRequest == null) {
@@ -132,15 +141,16 @@ public class StalledDiscussionFlow {
                 // https://docs.github.com/en/rest/pulls/comments#list-review-comments-in-a-repository
                 // but the client doesn't expose them
                 Date lastCommentDate;
+                LOG.info("COMMENTS COUNT: {}", pullRequest.listReviewComments().toList().size());
                 var mostRecent = pullRequest.listReviewComments().toList().stream()
-//                        .filter(pr -> {
-//                            try {
-//                                return !Util.isThisBot(config, pr.getUser());
-//                            } catch (IOException e) {
-//                                return true;
-//                            }
-//                        })
-                        .map(comment -> {
+                    .filter(pr -> {
+                            try {
+                                return !Util.isThisBot(config, pr.getUser());
+                            } catch (IOException e) {
+                                return true;
+                            }
+                        })
+                    .map(comment -> {
                             try {
                                 LOG.info("Comment: {}", comment.getBody());
                                 LOG.info("User: {}", comment.getUser().getLogin());
@@ -151,16 +161,16 @@ public class StalledDiscussionFlow {
                         }).max(Date::compareTo);
 
                 lastCommentDate = mostRecent.orElseGet(() -> {
-                    try {
-                        return pullRequest.getUpdatedAt();
-                    } catch (IOException e) {
                         try {
-                            return pullRequest.getCreatedAt();
-                        } catch (IOException ex) {
-                            return new Date(0);
+                            return pullRequest.getUpdatedAt();
+                        } catch (IOException e) {
+                            try {
+                                return pullRequest.getCreatedAt();
+                            } catch (IOException ex) {
+                                return new Date(0);
+                            }
                         }
-                    }
-                });
+                    });
                 LOG.info("PR#{}: Last comment time {}", pullRequest.getNumber(), lastCommentDate);
 
                 if (lastCommentDate.getTime() < thresh) {

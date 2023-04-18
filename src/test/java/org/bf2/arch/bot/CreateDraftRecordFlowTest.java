@@ -70,6 +70,8 @@ class CreateDraftRecordFlowTest {
                 "- \"me\"\n" +
                 "tags:\n" +
                 "- \"bar\"\n" +
+                "applies_padrs: null\n" +
+                "applies_patterns: null\n" +
                 "---\n" +
                 "Hello, world\n", rendered.toContentString());
     }
@@ -92,6 +94,8 @@ class CreateDraftRecordFlowTest {
                         "- \"me\"\n" +
                         "tags:\n" +
                         "- \"bar\"\n" +
+                        "applies_padrs: null\n" +
+                        "applies_patterns: null\n" +
                         "---\n" +
                         "Hello, world\n", rendered.toContentString());
     }
