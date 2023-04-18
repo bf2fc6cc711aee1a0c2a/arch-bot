@@ -60,7 +60,10 @@ public class StalledDiscussionFlow {
     ArchBotConfig config;
 
     @Inject
-    void init(GitHubService service, GitHubConfigFileProvider configFileProvider) throws IOException {
+    GitHubService service;
+
+    @Inject
+    void init(GitHubConfigFileProvider configFileProvider) throws IOException {
         if (!enabled) {
             LOG.debug("Ignoring init: disabled due to {}=false", ENABLE);
         } else if (installationId != null) {
@@ -75,7 +78,11 @@ public class StalledDiscussionFlow {
         }
     }
 
-
+    @Scheduled(every = "30m")
+    void updateInstallationClientToken() {
+        LOG.debug("Updating installation client to get new token (expires every 1h)");
+        client = service.getInstallationClient(installationId);
+    }
 
     /**
      * When
